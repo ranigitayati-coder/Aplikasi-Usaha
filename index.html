@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Sistem Usaha Multi Produk</title>
+</head>
+<body style="font-family: Arial; padding:20px;">
+
+<h2>📦 Stok Bahan</h2>
+<div id="stokList"></div>
+<button onclick="tambahStok()">+ Tambah Bahan</button>
+
+<hr>
+
+<h2>🍹 Produk</h2>
+
+<input id="namaProduk" placeholder="Nama produk">
+<input id="hargaProduk" type="number" placeholder="Harga jual">
+
+<div id="resepList"></div>
+<button onclick="tambahResep()">+ Tambah Bahan Resep</button>
+
+<button onclick="simpanProduk()">💾 Simpan Produk</button>
+
+<hr>
+
+<h2>📋 Daftar Produk</h2>
+<div id="produkList"></div>
+
+<hr>
+
+<h2>🛒 Penjualan</h2>
+<select id="pilihProduk"></select>
+<input type="number" id="jumlahJual" placeholder="Jumlah terjual">
+<button onclick="jualProduk()">Proses Penjualan</button>
+
+<hr>
+
+<h2>📊 Laporan</h2>
+<div id="laporan"></div>
+
+<hr>
+
+<h2>📦 Sisa Stok</h2>
+<div id="sisaStok"></div>
+
+<script>
+let stok = JSON.parse(localStorage.getItem("stok")) || [];
+let produkList = JSON.parse(localStorage.getItem("produkList")) || [];
+let riwayat = JSON.parse(localStorage.getItem("riwayat")) || [];
+
+let resepTemp = [];
+
+const satuanMap = { gram:1, kg:1000, ml:1, liter:1000, pcs:1 };
+
+function saveAll(){
+  localStorage.setItem("stok", JSON.stringify(stok));
+  localStorage.setItem("produkList", JSON.stringify(produkList));
+  localStorage.setItem("riwayat", JSON.stringify(riwayat));
+}
+
+/* ===== STOK ===== */
+function renderStok(){
+  let html="";
+  stok.forEach((s,i)=>{
+    html+=`
+    <div>
+      <input value="${s.nama}" onchange="stok[${i}].nama=this.value; saveAll();">
+      <input type="number" value="${s.qty}" onchange="stok[${i}].qty=Number(this.value); saveAll();">
+      <select onchange="stok[${i}].satuan=this.value; saveAll();">
+        <option ${s.satuan=="gram"?"selected":""}>gram</option>
+        <option ${s.satuan=="ml"?"selected":""}>ml</option>
+        <option ${s.satuan=="pcs"?"selected":""}>pcs</option>
+      </select>
+      Beli:
+      <input type="number" value="${s.beli}" onchange="stok[${i}].beli=Number(this.value); saveAll();">
+      <select onchange="stok[${i}].satuanBeli=this.value; saveAll();">
+        <option ${s.satuanBeli=="kg"?"selected":""}>kg</option>
+        <option ${s.satuanBeli=="liter"?"selected":""}>liter</option>
+        <option ${s.satuanBeli=="pcs"?"selected":""}>pcs</option>
+      </select>
+      Harga:
+      <input type="number" value="${s.harga}" onchange="stok[${i}].harga=Number(this.value); saveAll();">
+      <button onclick="hapusStok(${i})">X</button>
+    </div><br>`;
+  });
+  document.getElementById("stokList").innerHTML=html;
+}
+
+function tambahStok(){
+  stok.push({nama:"",qty:0,satuan:"gram",beli:1,satuanBeli:"kg",harga:0});
+  saveAll(); renderStok();
+}
+
+function hapusStok(i){
+  stok.splice(i,1);
+  saveAll(); renderStok();
+}
+
+/* ===== RESEP TEMP ===== */
+function renderResep(){
+  let html="";
+  resepTemp.forEach((r,i)=>{
+    html+=`
+    <div>
+      <select onchange="resepTemp[${i}].nama=this.value; renderResep();">
+        <option value="">Pilih bahan</option>
+        ${stok.map(s=>`<option value="${s.nama}" ${r.nama===s.nama?"selected":""}>${s.nama}</option>`).join("")}
+      </select>
+
+      <input type="number" value="${r.qty}" onchange="resepTemp[${i}].qty=Number(this.value); renderResep();">
+
+      <select onchange="resepTemp[${i}].satuan=this.value">
+        <option ${r.satuan=="gram"?"selected":""}>gram</option>
+        <option ${r.satuan=="ml"?"selected":""}>ml</option>
+        <option ${r.satuan=="pcs"?"selected":""}>pcs</option>
+      </select>
+
+      <span>Rp ${Math.round(hitungBiaya(r)).toLocaleString()}</span>
+
+      <button onclick="hapusResep(${i})">X</button>
+    </div><br>`;
+  });
+
+  document.getElementById("resepList").innerHTML=html;
+}
+
+function tambahResep(){
+  resepTemp.push({nama:"",qty:0,satuan:"gram"});
+  renderResep();
+}
+
+function hapusResep(i){
+  resepTemp.splice(i,1);
+  renderResep();
+}
+
+function hitungBiaya(r){
+  let bahan = stok.find(s=>s.nama===r.nama);
+  if(!bahan) return 0;
+
+  let pakai = r.qty * satuanMap[r.satuan];
+  let beli = bahan.beli * satuanMap[bahan.satuanBeli];
+
+  return pakai * (bahan.harga / beli);
+}
+
+/* ===== SIMPAN PRODUK ===== */
+function simpanProduk(){
+  let nama = document.getElementById("namaProduk").value;
+  let harga = Number(document.getElementById("hargaProduk").value);
+
+  if(!nama) return alert("Nama produk kosong");
+
+  produkList.push({
+    nama,
+    harga,
+    resep: JSON.parse(JSON.stringify(resepTemp))
+  });
+
+  resepTemp = [];
+  document.getElementById("namaProduk").value="";
+  document.getElementById("hargaProduk").value="";
+
+  saveAll();
+  renderProduk();
+  renderResep();
+}
+
+/* ===== RENDER PRODUK ===== */
+function renderProduk(){
+  let html="";
+  produkList.forEach(p=>{
+    html+=`<p>${p.nama} - Rp ${p.harga.toLocaleString()}</p>`;
+  });
+
+  document.getElementById("produkList").innerHTML=html;
+
+  document.getElementById("pilihProduk").innerHTML =
+    produkList.map((p,i)=>`<option value="${i}">${p.nama}</option>`).join("");
+}
+
+/* ===== PENJUALAN ===== */
+function jualProduk(){
+  let idx = document.getElementById("pilihProduk").value;
+  let jumlah = Number(document.getElementById("jumlahJual").value || 0);
+
+  let produk = produkList[idx];
+  if(!produk) return;
+
+  for(let r of produk.resep){
+    let bahan = stok.find(s=>s.nama===r.nama);
+    if(!bahan || bahan.qty < r.qty * jumlah){
+      alert("Stok kurang: " + r.nama);
+      return;
+    }
+  }
+
+  produk.resep.forEach(r=>{
+    let bahan = stok.find(s=>s.nama===r.nama);
+    bahan.qty -= r.qty * jumlah;
+  });
+
+  let hpp = produk.resep.reduce((t,r)=>t + hitungBiaya(r),0);
+
+  riwayat.push({
+    produk: produk.nama,
+    qty: jumlah,
+    harga: produk.harga,
+    hpp: hpp
+  });
+
+  saveAll();
+  renderStok();
+  tampilSisa();
+  renderLaporan();
+}
+
+/* ===== LAPORAN ===== */
+function renderLaporan(){
+  let omzet=0, modal=0, qty=0;
+
+  riwayat.forEach(r=>{
+    omzet += r.qty * r.harga;
+    modal += r.qty * r.hpp;
+    qty += r.qty;
+  });
+
+  let profit = omzet - modal;
+
+  document.getElementById("laporan").innerHTML = `
+    <p>Total Terjual: ${qty}</p>
+    <p>Omzet: Rp ${Math.round(omzet).toLocaleString()}</p>
+    <p>Modal: Rp ${Math.round(modal).toLocaleString()}</p>
+    <p><b>Profit: Rp ${Math.round(profit).toLocaleString()}</b></p>
+  `;
+}
+
+/* ===== SISA STOK ===== */
+function tampilSisa(){
+  let html="";
+  stok.forEach(s=>{
+    html+=`<p>${s.nama}: ${s.qty} ${s.satuan}</p>`;
+  });
+  document.getElementById("sisaStok").innerHTML=html;
+}
+
+/* ===== INIT ===== */
+renderStok();
+renderProduk();
+renderResep();
+tampilSisa();
+renderLaporan();
+</script>
+
+</body>
+</html>
