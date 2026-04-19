@@ -2,13 +2,13 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Sistem Usaha Multi Produk</title>
+<title>Aplikasi Usaha</title>
 
 <link rel="manifest" href="manifest.json">
 
 <style>
 body {
-  max-width: 800px;
+  max-width: 900px;
   margin: auto;
   font-family: Arial;
 }
@@ -34,75 +34,80 @@ th, td {
 th {
   background: #f0f0f0;
 }
+.section {
+  margin-bottom: 25px;
+}
 </style>
 </head>
 
 <body>
 
+<div class="section">
 <h2>📦 Stok Bahan</h2>
 
 <input id="namaBahan" placeholder="Nama bahan">
 <input id="qtyBahan" type="number" placeholder="Jumlah stok">
 
 <select id="satuanBahan">
-  <option>gram</option>
-  <option>ml</option>
-  <option>pcs</option>
+<option>gram</option>
+<option>ml</option>
+<option>pcs</option>
 </select>
 
 <input id="beliBahan" type="number" placeholder="Jumlah beli">
 <select id="satuanBeliBahan">
-  <option>kg</option>
-  <option>liter</option>
-  <option>pcs</option>
+<option>kg</option>
+<option>liter</option>
+<option>pcs</option>
 </select>
 
 <input id="hargaBahan" type="number" placeholder="Harga beli">
 
-<button onclick="simpanStok()">💾 Simpan Bahan</button>
+<button onclick="simpanStok()">💾 Simpan</button>
 
 <div id="stokList"></div>
+</div>
 
-<hr>
-
+<div class="section">
 <h2>🍹 Produk</h2>
 
 <input id="namaProduk" placeholder="Nama produk">
 <input id="hargaProduk" type="number" placeholder="Harga jual">
-
-<div id="resepList"></div>
-<button onclick="tambahResep()">+ Tambah Bahan Resep</button>
-
 <button onclick="simpanProduk()">💾 Simpan Produk</button>
 
-<hr>
-
-<h2>📋 Daftar Produk</h2>
 <div id="produkList"></div>
 
-<hr>
+<h3>✏️ Edit Resep</h3>
+<div id="resepList"></div>
+<button onclick="tambahResep()">+ Tambah Bahan</button>
+<button onclick="simpanResep()">💾 Simpan Resep</button>
+</div>
 
+<div class="section">
 <h2>🛒 Penjualan</h2>
 <select id="pilihProduk"></select>
-<input id="jumlahJual" type="number" placeholder="Jumlah terjual">
-<button onclick="jualProduk()">Proses Penjualan</button>
+<input id="jumlahJual" type="number" placeholder="Jumlah">
+<button onclick="jualProduk()">Proses</button>
+</div>
 
-<hr>
-
+<div class="section">
 <h2>📊 Laporan</h2>
 <div id="laporan"></div>
-<button onclick="resetLaporan()">🔄 Reset Hari Ini</button>
+<button onclick="resetLaporan()">Reset Harian</button>
+</div>
 
-<hr>
-
+<div class="section">
 <h2>📦 Sisa Stok</h2>
 <div id="sisaStok"></div>
+</div>
 
 <script>
 let stok = JSON.parse(localStorage.getItem("stok")) || [];
 let produkList = JSON.parse(localStorage.getItem("produkList")) || [];
 let riwayat = JSON.parse(localStorage.getItem("riwayat")) || [];
+
 let resepTemp = [];
+let editResepIndex = null;
 
 const satuanMap = { gram:1, kg:1000, ml:1, liter:1000, pcs:1 };
 
@@ -134,15 +139,8 @@ function simpanStok(){
 }
 
 function renderStok(){
-  let html = `
-  <table>
-    <tr>
-      <th>Nama</th>
-      <th>Stok</th>
-      <th>Satuan</th>
-      <th>Harga</th>
-      <th>Aksi</th>
-    </tr>`;
+  let html = `<table>
+  <tr><th>Nama</th><th>Stok</th><th>Satuan</th><th>Harga</th><th>Aksi</th></tr>`;
 
   stok.forEach((s,i)=>{
     html += `
@@ -171,6 +169,73 @@ function hapusStok(i){
   renderStok();
 }
 
+/* ===== RESEP ===== */
+function tambahResep(){
+  resepTemp.push({nama:"", qty:0, satuan:"gram"});
+  renderResep();
+}
+
+function renderResep(){
+  let html="";
+  resepTemp.forEach((r,i)=>{
+    html += `
+    <div>
+      <select onchange="resepTemp[${i}].nama=this.value">
+        <option value="">Pilih bahan</option>
+        ${stok.map(s=>`<option value="${s.nama}" ${r.nama==s.nama?"selected":""}>${s.nama}</option>`).join("")}
+      </select>
+
+      <input type="number" value="${r.qty}"
+        onchange="resepTemp[${i}].qty=Number(this.value)">
+
+      <select onchange="resepTemp[${i}].satuan=this.value">
+        <option ${r.satuan=="gram"?"selected":""}>gram</option>
+        <option ${r.satuan=="ml"?"selected":""}>ml</option>
+        <option ${r.satuan=="pcs"?"selected":""}>pcs</option>
+      </select>
+
+      Rp ${Math.round(hitungBiaya(r)).toLocaleString()}
+
+      <button onclick="hapusResep(${i})">X</button>
+    </div>`;
+  });
+  resepList.innerHTML = html;
+}
+
+function hapusResep(i){
+  resepTemp.splice(i,1);
+  renderResep();
+}
+
+function editResep(i){
+  editResepIndex = i;
+  resepTemp = JSON.parse(JSON.stringify(produkList[i].resep || []));
+  renderResep();
+}
+
+function simpanResep(){
+  if(editResepIndex===null) return alert("Pilih produk dulu");
+
+  produkList[editResepIndex].resep = JSON.parse(JSON.stringify(resepTemp));
+
+  saveAll();
+  renderProduk();
+
+  resepTemp=[];
+  editResepIndex=null;
+  renderResep();
+}
+
+function hitungBiaya(r){
+  let bahan = stok.find(s=>s.nama===r.nama);
+  if(!bahan) return 0;
+
+  let pakai = r.qty * satuanMap[r.satuan];
+  let beli = bahan.beli * satuanMap[bahan.satuanBeli];
+
+  return pakai * (bahan.harga / beli);
+}
+
 /* ===== PRODUK ===== */
 function simpanProduk(){
   let nama = namaProduk.value;
@@ -187,23 +252,24 @@ function simpanProduk(){
 }
 
 function renderProduk(){
-  let html = `
-  <table>
-    <tr>
-      <th>Nama</th>
-      <th>Harga</th>
-    </tr>`;
+  let html = `<table>
+  <tr><th>Nama</th><th>Harga</th><th>HPP</th><th>Aksi</th></tr>`;
 
   produkList.forEach((p,i)=>{
+    let hpp = p.resep.reduce((t,r)=>t+hitungBiaya(r),0);
+
     html += `
     <tr>
       <td><input value="${p.nama}" onchange="produkList[${i}].nama=this.value; saveAll();"></td>
       <td><input type="number" value="${p.harga}" onchange="produkList[${i}].harga=Number(this.value); saveAll();"></td>
+      <td>Rp ${Math.round(hpp).toLocaleString()}</td>
+      <td><button onclick="editResep(${i})">Resep</button></td>
     </tr>`;
   });
 
   html += `</table>`;
-  produkList.innerHTML = html;
+  produkListDiv = document.getElementById("produkList");
+  produkListDiv.innerHTML = html;
 
   pilihProduk.innerHTML =
     produkList.map((p,i)=>`<option value="${i}">${p.nama}</option>`).join("");
@@ -217,16 +283,30 @@ function jualProduk(){
   let produk = produkList[idx];
   if(!produk) return;
 
-  let hpp = 0;
+  for(let r of produk.resep){
+    let bahan = stok.find(s=>s.nama===r.nama);
+    if(!bahan || bahan.qty < r.qty * jumlah){
+      return alert("Stok kurang: "+r.nama);
+    }
+  }
+
+  produk.resep.forEach(r=>{
+    let bahan = stok.find(s=>s.nama===r.nama);
+    bahan.qty -= r.qty * jumlah;
+  });
+
+  let hpp = produk.resep.reduce((t,r)=>t+hitungBiaya(r),0);
 
   riwayat.push({
     produk: produk.nama,
     qty: jumlah,
     harga: produk.harga,
-    hpp
+    hpp: hpp
   });
 
   saveAll();
+  renderStok();
+  tampilSisa();
   renderLaporan();
 }
 
@@ -241,23 +321,43 @@ function renderLaporan(){
   });
 
   laporan.innerHTML = `
-    <p>Total: ${qty}</p>
-    <p>Omzet: Rp ${omzet.toLocaleString()}</p>
-    <p>Profit: Rp ${(omzet-modal).toLocaleString()}</p>
+    Total: ${qty}<br>
+    Omzet: Rp ${Math.round(omzet).toLocaleString()}<br>
+    Modal: Rp ${Math.round(modal).toLocaleString()}<br>
+    <b>Profit: Rp ${Math.round(omzet-modal).toLocaleString()}</b>
   `;
 }
 
 function resetLaporan(){
-  if(confirm("Reset?")){
+  if(confirm("Reset hari ini?")){
     riwayat=[];
     saveAll();
     renderLaporan();
   }
 }
 
+/* ===== SISA STOK ===== */
+function tampilSisa(){
+  let html = `<table>
+  <tr><th>Nama</th><th>Sisa</th><th>Satuan</th></tr>`;
+
+  stok.forEach(s=>{
+    html += `<tr>
+      <td>${s.nama}</td>
+      <td>${s.qty}</td>
+      <td>${s.satuan}</td>
+    </tr>`;
+  });
+
+  html += `</table>`;
+  sisaStok.innerHTML = html;
+}
+
 /* ===== INIT ===== */
 renderStok();
 renderProduk();
+renderResep();
+tampilSisa();
 renderLaporan();
 </script>
 
