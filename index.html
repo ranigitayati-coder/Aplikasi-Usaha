@@ -28,9 +28,31 @@ button {
 <body>
 
 <h2>📦 Stok Bahan</h2>
-<p>Masukkan bahan yang kamu beli (contoh: teh, gula, cup)</p>
+<p>Masukkan bahan satu per satu lalu simpan</p>
+
+<input id="namaBahan" placeholder="Nama bahan">
+<input id="qtyBahan" type="number" placeholder="Jumlah stok">
+
+<select id="satuanBahan">
+  <option>gram</option>
+  <option>ml</option>
+  <option>pcs</option>
+</select>
+
+<input id="beliBahan" type="number" placeholder="Jumlah beli">
+<select id="satuanBeliBahan">
+  <option>kg</option>
+  <option>liter</option>
+  <option>pcs</option>
+</select>
+
+<input id="hargaBahan" type="number" placeholder="Harga beli">
+
+<button onclick="simpanStok()">💾 Simpan Bahan</button>
+
+<hr>
+
 <div id="stokList"></div>
-<button onclick="tambahStok()">+ Tambah Bahan</button>
 
 <hr>
 
